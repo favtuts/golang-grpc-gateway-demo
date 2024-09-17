@@ -100,3 +100,72 @@ $ go run cmd/main.go
 
 Hello gRPC-Gateway demostration
 ```
+
+# Create Protobuf Model
+
+Create `proto/hello.proto` by running the following commands
+```bash
+$ mkdir proto
+$ touch proto/hello.proto
+```
+
+When you run the commands your project folder will look like below.
+```bash
+proto  
+    └── hello.proto
+```
+
+When using protocol buffers, each RPC must define the HTTP method and path using the `google.api.http` annotation. So we will need to add the `google/api/http.proto` import to the proto file. We also need to add the HTTP->gRPC mapping we want. In this case, we’re mapping `POST /v1/message` to our `SayHello` RPC.
+
+**proto/hello.proto**
+```go
+syntax = "proto3";
+
+option go_package = "github.com/favtuts/grpc-gateway"; 
+
+import "google/api/annotations.proto";
+
+// Here is the overall greeting service definition where we define all our endpoints
+service Greeter {
+  // Sends a greeting
+  rpc SayHello (HelloRequest) returns (HelloResponse) {
+    option (google.api.http) = {
+      post: "/v1/message"
+      body: "*"
+    };
+  }
+}
+
+// The request message containing the user's name
+message HelloRequest {
+  string name = 1;
+}
+
+// The response message containing the greetings
+message HelloResponse {
+  string message = 1;
+}
+```
+
+gRPC Gateway requires a few proto files hosted within the googleapis repository. Unfortunately, we have to manually add these proto files to our project. Copy a subset of googleapis from the [official repository](https://github.com/googleapis/googleapis) to your local proto file structure. Then your file structure should look like this:
+```bash
+proto
+├── google
+│   └── api
+│       ├── annotations.proto
+│       └── http.proto
+└── hello.proto
+```
+
+
+We use the `go` ,`go-grpc` and `go-gateway` plugins to generate Go types and gRPC service definitions. We’re outputting the generated files relative to the `proto` folder, and we’re using the `paths=source_relative` option, which means that the generated files will appear in the same directory as the source `.proto` file.
+
+```bash
+$ protoc -I ./proto \
+  --go_out ./proto --go_opt paths=source_relative \
+  --go-grpc_out ./proto --go-grpc_opt paths=source_relative \
+  --grpc-gateway_out ./proto --grpc-gateway_opt paths=source_relative \
+  ./proto/hello.proto
+```
+
+This will have generated a `*.pb.go` , `*_grpc.pb.go` and a `*.gw.pb.go` file for `proto/hello.proto`.
